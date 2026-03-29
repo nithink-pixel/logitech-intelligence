@@ -17,7 +17,7 @@ DB_PATH = "logitech_intelligence.db"
 
 st.set_page_config(
     page_title="Logitech Brand Intelligence",
-    page_icon="🖱️",
+    page_icon="https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Logitech_logo.svg/32px-Logitech_logo.svg.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )
