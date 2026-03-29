@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from datetime import datetime
 from io import BytesIO
+from global_comparison import render_global_tab
 
 try:
     from reportlab.lib.pagesizes import letter, landscape
@@ -277,8 +278,9 @@ def main():
     st.markdown("---")
 
     # ── Tabs ──────────────────────────────────────────────────
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📈 Price History",
+        "🌍 Global Comparison",
         "📊 Opportunity Scores",
         "💰 Price Intelligence",
         "⭐ Ratings & Reviews",
@@ -442,9 +444,15 @@ def main():
                         st.plotly_chart(fig3, use_container_width=True)
 
     # ══════════════════════════════════════════════════════════
-    # TAB 2 — OPPORTUNITY SCORES
+    # TAB 2 — GLOBAL COMPARISON
     # ══════════════════════════════════════════════════════════
     with tab2:
+        render_global_tab(filtered_history)
+
+    # ══════════════════════════════════════════════════════════
+    # TAB 3 — OPPORTUNITY SCORES
+    # ══════════════════════════════════════════════════════════
+    with tab3:
         st.subheader("Opportunity Score Leaderboard")
         if filtered_scores.empty:
             st.info("No opportunity scores computed yet.")
@@ -501,9 +509,9 @@ def main():
             )
 
     # ══════════════════════════════════════════════════════════
-    # TAB 3 — PRICE INTELLIGENCE
+    # TAB 4 — PRICE INTELLIGENCE
     # ══════════════════════════════════════════════════════════
-    with tab3:
+    with tab4:
         st.subheader("Price Intelligence")
         if filtered_intel.empty:
             st.info("No price data available.")
@@ -559,9 +567,9 @@ def main():
                 st.dataframe(disc, hide_index=True, use_container_width=True, height=250)
 
     # ══════════════════════════════════════════════════════════
-    # TAB 4 — RATINGS & REVIEWS
+    # TAB 5 — RATINGS & REVIEWS
     # ══════════════════════════════════════════════════════════
-    with tab4:
+    with tab5:
         st.subheader("Ratings & Review Intelligence")
         if filtered_intel.empty:
             st.info("No ratings data.")
@@ -612,9 +620,9 @@ def main():
                 st.plotly_chart(fig3, use_container_width=True)
 
     # ══════════════════════════════════════════════════════════
-    # TAB 5 — STOCK & DISTRIBUTION
+    # TAB 6 — STOCK & DISTRIBUTION
     # ══════════════════════════════════════════════════════════
-    with tab5:
+    with tab6:
         st.subheader("Stock & Distribution Analysis")
         if filtered_intel.empty:
             st.info("No stock data.")
@@ -667,9 +675,9 @@ def main():
                 st.plotly_chart(fig3, use_container_width=True)
 
     # ══════════════════════════════════════════════════════════
-    # TAB 6 — RAW DATA
+    # TAB 7 — RAW DATA
     # ══════════════════════════════════════════════════════════
-    with tab6:
+    with tab7:
         st.subheader("Raw Data Explorer")
         sub1, sub2, sub3 = st.tabs(["Price Intelligence", "Opportunity Scores", "Full History"])
 
@@ -726,3 +734,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# This file has been updated - see the full version below
