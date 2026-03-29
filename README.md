@@ -91,6 +91,10 @@ Each product-channel combo gets a score (0–100) based on:
 
 ---
 
+
+## 📄 Sample Report
+Download a sample PDF report: [sample_report.pdf](samples/sample_report.pdf)
+
 ## 🛠️ Tech Stack
 
 - **Scraping** — Python, Requests, BeautifulSoup
