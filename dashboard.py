@@ -9,21 +9,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from datetime import datetime
-from io import BytesIO
 from global_comparison import render_global_tab
-from alerts import render_alerts_tab
-
-try:
-    from reportlab.lib.pagesizes import letter, landscape
-    from reportlab.lib import colors
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import inch
-    from reportlab.platypus import (
-        SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-    )
-    REPORTLAB_OK = True
-except ImportError:
-    REPORTLAB_OK = False
+from alerts import render_alerts_tab, compute_alerts
+from pdf_export import generate_pdf_report
 
 DB_PATH = "logitech_intelligence.db"
 
@@ -90,110 +78,6 @@ def load_price_history():
     if not history.empty:
         history["scraped_at"] = pd.to_datetime(history["scraped_at"])
     return history
-
-
-# ════════════════════════════════════════════════════════════════
-# PDF EXPORT
-# ════════════════════════════════════════════════════════════════
-def generate_pdf(intel_df, scores_df):
-    buf = BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=landscape(letter),
-                            leftMargin=0.5*inch, rightMargin=0.5*inch,
-                            topMargin=0.5*inch, bottomMargin=0.5*inch)
-    styles = getSampleStyleSheet()
-    story = []
-
-    title_style = ParagraphStyle("title", parent=styles["Title"],
-                                  fontSize=20, textColor=colors.HexColor("#1e40af"),
-                                  spaceAfter=6)
-    sub = ParagraphStyle("sub", parent=styles["Heading2"],
-                          fontSize=13, textColor=colors.HexColor("#1e40af"))
-
-    story.append(Paragraph("Logitech Brand Intelligence Report", title_style))
-    story.append(Paragraph(
-        f"Generated: {datetime.now().strftime('%B %d, %Y %H:%M')}", styles["Normal"]
-    ))
-    story.append(Spacer(1, 0.2*inch))
-
-    # Summary
-    story.append(Paragraph("Executive Summary", sub))
-    summary_data = [
-        ["Metric", "Value"],
-        ["Total Products Tracked", str(intel_df["product_id"].nunique())],
-        ["Channels with Data", str(intel_df["channel_id"].nunique())],
-        ["Total Data Points", str(len(intel_df))],
-        ["Avg Price (USD)", f"${intel_df['price'].mean():.2f}" if not intel_df['price'].isnull().all() else "N/A"],
-        ["Avg Rating", f"{intel_df['rating'].mean():.2f}" if not intel_df['rating'].isnull().all() else "N/A"],
-        ["In Stock %", f"{intel_df['in_stock'].mean()*100:.1f}%"],
-    ]
-    t = Table(summary_data, colWidths=[3*inch, 2*inch])
-    t.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1e40af")),
-        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
-        ("FONTSIZE", (0,0), (-1,-1), 10),
-        ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#f1f5f9")]),
-        ("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#e2e8f0")),
-        ("PADDING", (0,0), (-1,-1), 6),
-    ]))
-    story.append(t)
-    story.append(Spacer(1, 0.3*inch))
-
-    # Opportunity scores
-    if not scores_df.empty:
-        story.append(Paragraph("Opportunity Scores", sub))
-        cols = ["product_name", "channel_name", "opportunity_score",
-                "opportunity_tier", "ad_recommendation", "stock_risk"]
-        available = [c for c in cols if c in scores_df.columns]
-        top = scores_df[available].sort_values("opportunity_score", ascending=False).head(30)
-        header = [c.replace("_", " ").title() for c in available]
-        table_data = [header] + [
-            [str(round(v, 1)) if isinstance(v, float) else str(v) for v in row]
-            for row in top.values.tolist()
-        ]
-        col_w = [2.5*inch, 1.5*inch, 1*inch, 0.7*inch, 1.2*inch, 0.8*inch][:len(available)]
-        t2 = Table(table_data, colWidths=col_w, repeatRows=1)
-        t2.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1e40af")),
-            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
-            ("FONTSIZE", (0,0), (-1,-1), 8),
-            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#f1f5f9")]),
-            ("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#e2e8f0")),
-            ("PADDING", (0,0), (-1,-1), 4),
-        ]))
-        story.append(t2)
-        story.append(PageBreak())
-
-    # Price intelligence
-    if not intel_df.empty:
-        story.append(Paragraph("Price Intelligence", sub))
-        cols2 = ["product_name", "channel_name", "price", "original_price",
-                 "discount_pct", "rating", "review_count", "in_stock"]
-        available2 = [c for c in cols2 if c in intel_df.columns]
-        top2 = intel_df[available2].sort_values("product_name").head(40)
-        header2 = [c.replace("_", " ").title() for c in available2]
-        table_data2 = [header2] + [
-            [str(round(v, 2)) if isinstance(v, float) else str(v) for v in row]
-            for row in top2.values.tolist()
-        ]
-        col_w2 = [2.2*inch, 1.2*inch, 0.7*inch, 0.9*inch,
-                  0.7*inch, 0.6*inch, 0.9*inch, 0.6*inch][:len(available2)]
-        t3 = Table(table_data2, colWidths=col_w2, repeatRows=1)
-        t3.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1e40af")),
-            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
-            ("FONTSIZE", (0,0), (-1,-1), 8),
-            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#f1f5f9")]),
-            ("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#e2e8f0")),
-            ("PADDING", (0,0), (-1,-1), 4),
-        ]))
-        story.append(t3)
-
-    doc.build(story)
-    buf.seek(0)
-    return buf
 
 
 # ════════════════════════════════════════════════════════════════
@@ -718,25 +602,26 @@ def main():
     # PDF EXPORT
     # ══════════════════════════════════════════════════════════
     st.markdown("---")
-    st.subheader("📄 Export Report")
+    st.subheader("📄 Export Full Report")
     col1, col2 = st.columns([1, 3])
     with col1:
-        if REPORTLAB_OK:
-            if st.button("Generate PDF Report", type="primary", use_container_width=True):
-                with st.spinner("Generating PDF…"):
-                    pdf_buf = generate_pdf(filtered_intel, filtered_scores)
-                st.download_button(
-                    "⬇️ Download PDF",
-                    data=pdf_buf,
-                    file_name=f"logitech_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True,
+        if st.button("📄 Generate PDF Report", type="primary", use_container_width=True):
+            with st.spinner("Building PDF report…"):
+                alerts = compute_alerts(filtered_history, filtered_intel, filtered_scores)
+                pdf_buf = generate_pdf_report(
+                    filtered_intel, filtered_scores, alerts, filtered_history
                 )
-        else:
-            st.warning("Install reportlab: `pip install reportlab`")
+            st.download_button(
+                "⬇️ Download PDF",
+                data=pdf_buf,
+                file_name=f"logitech_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
     with col2:
         st.caption(
-            "PDF includes executive summary, opportunity scores, and price intelligence tables."
+            "4-page PDF report: Executive Summary · Opportunity Scores · "
+            "Price Intelligence · Active Alerts with action recommendations."
         )
 
 
