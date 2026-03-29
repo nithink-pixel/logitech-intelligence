@@ -147,6 +147,17 @@ def render_global_tab(history_df: pd.DataFrame):
     )
     latest["short_name"] = latest["product_name"].str.replace("Logitech ", "", regex=False)
 
+    # Sanity check: filter prices outside $5-$500 USD range (FX conversion errors)
+    suspect = (latest["price_usd"] < 5) | (latest["price_usd"] > 500)
+    suspect_count = int(suspect.sum())
+    if suspect_count > 0:
+        st.warning(
+            f"Excluded {suspect_count} listings with suspicious prices after FX conversion "
+            f"(outside $5-$500 USD range). Likely scraper read wrong number from local page."
+        )
+        latest = latest[~suspect].copy()
+
+
     # ── Controls ──────────────────────────────────────────────
     col_a, col_b = st.columns(2)
     with col_a:
