@@ -11,6 +11,14 @@ from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
 from .base import BaseScraper, clean_price, clean_rating, clean_review_count, random_delay
 
+# Import API-based scrapers
+try:
+    from .walmart_api import WalmartAPIScraper
+    from .target_api import TargetAPIScraper
+    USE_API_SCRAPERS = True
+except ImportError:
+    USE_API_SCRAPERS = False
+
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────
@@ -520,7 +528,7 @@ def build_scraper_registry(conn, run_id=None):
 
     # All non-Amazon channels — search-based URL maps
     non_amazon_classes = [
-        WalmartScraper, TargetScraper, BestBuyScraper, EbayScraper, LogitechDirectScraper,
+        (WalmartAPIScraper if USE_API_SCRAPERS else WalmartScraper), (TargetAPIScraper if USE_API_SCRAPERS else TargetScraper), BestBuyScraper, EbayScraper, LogitechDirectScraper,
         NeweggScraper, KohlsScraper, CostcoScraper, SamsClubScraper, BHPhotoScraper,
         AdoramaScraper, StaplesScraper, OfficeDepotScraper, MicroCenterScraper,
         RakutenScraper, OverstockScraper, WayfairScraper, HomeDepotScraper, MacysScraper,
